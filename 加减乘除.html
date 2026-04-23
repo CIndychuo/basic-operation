@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>基本运算填填乐 | 综合版</title>
+    <style>
+        * { box-sizing: border-box; user-select: none; }
+
+        :root {
+            --primary: #2c7da0;
+            --primary-hover: #1f5e7e;
+            --success: #2e7d32;
+            --success-bg: #e8f5e9;
+            --error: #d32f2f;
+            --warning: #f59e0b;
+            --cell-size: 56px;
+            --cell-font: 28px;
+            --board-radius: 28px;
+            --bg-gradient: linear-gradient(145deg, #eef2f5 0%, #e0e7ed 100%);
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: var(--bg-gradient);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+            overflow-x: hidden;
+        }
+
+/* ================= 页面切换控制 ================= */
+        .page { display: none; width: 100%; flex-direction: column; align-items: center; animation: fadeIn 0.5s ease; }
+        .page.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* ================= 主菜单 ================= */
+        .menu-title { font-size: 36px; font-weight: 900; color: #1e4663; margin-top: 5vh; margin-bottom: 40px; text-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        
+        /* 修改点 1：强制四个按键排成一行 */
+        .menu-cards { 
+            display: flex; 
+            gap: 20px; 
+            flex-wrap: nowrap; /* 强制不换行 */
+            justify-content: center; 
+            max-width: 1000px; /* 放宽最大宽度以容纳4个按键 */
+            width: 100%;
+            overflow-x: auto; /* 若屏幕过小允许左右滑动 */
+            padding: 10px;
+        }
+        .mode-card {
+            background: white; border-radius: 30px; padding: 30px 15px; width: 220px; text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08); cursor: pointer; border: 4px solid transparent; transition: 0.3s;
+            flex-shrink: 0; /* 防止按键被挤压变形 */
+        }
+        .mode-card:hover { transform: translateY(-10px); border-color: var(--primary); box-shadow: 0 20px 40px rgba(44,125,160,0.2); }
+        .mode-icon { font-size: 60px; margin-bottom: 15px; }
+        .mode-name { font-size: 24px; font-weight: 900; color: #1e293b; }
+        /* ================= 题目设置区 ================= */
+        .setup-container {
+            background: rgba(255,255,255,0.9); backdrop-filter: blur(8px); padding: 30px 40px;
+            border-radius: 40px; box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+            border: 1px solid rgba(255,255,255,0.8); z-index: 10; margin-top: 5vh; align-items: center; display: flex; flex-direction: column;
+        }
+        .setup-title { font-size: 26px; font-weight: 900; color: #1e4663; margin-bottom: 24px; }
+        .setup-inputs { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+        .setup-inputs input {
+            width: 110px; padding: 10px; font-size: 28px; font-weight: 900; border: 2px solid #cbd5e6;
+            border-radius: 16px; text-align: center; font-family: monospace; cursor: pointer; outline: none;
+        }
+        .setup-inputs input.active-input { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(44,125,160,0.2); background: #f0f8ff; }
+        .operator-symbol { font-size: 32px; font-weight: 900; color: #64748b; width: 30px; text-align: center; }
+
+        .setup-keyboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 100%; max-width: 300px; margin-bottom: 20px; }
+        .setup-key {
+            background: #f8fafc; border: 2px solid #cbd5e1; border-radius: 14px; font-size: 26px; font-weight: 900;
+            color: #0f2b3d; height: 60px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.1s;
+        }
+        .setup-key:active { background: #e2e8f0; transform: scale(0.95); }
+        .setup-key.del-key { background: #fee2e2; color: var(--error); border-color: #fca5a5; }
+
+        .btn-main {
+            padding: 14px 40px; font-size: 20px; font-weight: bold; background: var(--primary); color: white;
+            border: none; border-radius: 40px; cursor: pointer; transition: 0.2s; width: 100%; box-shadow: 0 4px 10px rgba(44,125,160,0.3);
+        }
+        .btn-main:hover { background: var(--primary-hover); transform: scale(1.03); }
+        .btn-secondary { background: #94a3b8; margin-top: 12px; box-shadow: 0 4px 10px rgba(148,163,184,0.3); }
+
+        /* ================= 算式工作区 ================= */
+        .top-bar { display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 1100px; margin-bottom: 20px; }
+        .btn-nav { padding: 10px 18px; font-size: 16px; font-weight: bold; background: white; color: #1e4663; border: 2px solid #cbd5e6; border-radius: 20px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .btn-nav:hover { background: #f1f5f9; border-color: var(--primary); }
+        
+        .formula-top { font-size: 32px; font-weight: 900; color: #1e293b; background: white; padding: 12px 40px; border-radius: 40px; box-shadow: 0 6px 15px rgba(0,0,0,0.05); letter-spacing: 2px; display: flex; align-items: center; justify-content: center; }
+
+        .workspace-layout { display: flex; width: 100%; max-width: 1100px; gap: 30px; flex-direction: column; align-items: center; position: relative; }
+        @media (min-width: 800px) {
+            .workspace-layout { flex-direction: row; align-items: flex-start; justify-content: center; }
+            .left-panel { flex: 1; overflow-x: auto; padding-bottom: 20px; display: flex; flex-direction: column; align-items: center; }
+            .right-panel { width: 340px; flex-shrink: 0; position: sticky; top: 20px; }
+        }
+
+        .board { background: white; padding: 40px 60px; border-radius: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); border: 1px solid #e9f0f5; }
+        .math-grid { display: grid; row-gap: 8px; column-gap: 6px; align-items: center; justify-items: center; }
+        
+        /* 针对除法的特殊网格 */
+        .math-grid.div-grid { column-gap: 0; }
+
+        .cell { width: var(--cell-size); height: var(--cell-size); display: flex; align-items: center; justify-content: center; font-size: var(--cell-font); font-weight: 700; font-family: monospace; position: relative; transition: 0.2s; }
+        .static { color: #0f2b3d; cursor: default; }
+        .symbol { font-size: 32px; font-weight: 900; color: #1e293b; justify-self: end; padding-right: 10px; }
+        .sub-line { height: 4px; background: #1e293b; border-radius: 2px; width: 100%; align-self: end; margin-bottom: -2px; }
+        
+        .bottom-line { height: 4px; background: #1e293b; border-radius: 2px; width: 100%; align-self: start; margin-top: 2px; display: none; }
+
+        /* 除法特殊符号 */
+        .division-symbol { border-top: 3px solid #1e293b; width: 100% !important; height: 100%; position: relative; }
+        .division-symbol::after { content: ''; position: absolute; top: -3px; left: -20px; width: 20px; height: 110%; border-right: 3px solid #1e293b; border-bottom-right-radius: 20px 100%; transform: none; }
+        .dividend-top { border-top: 3px solid #1e293b; width: 100%; height: 100%; }
+        .div-sub-line { height: 3px; background: #1e293b; width: calc(100% - 6px); align-self: end; border-radius: 2px; justify-self: center; margin-bottom: -2px; }
+
+        /* 除法步骤提示区 */
+        .phase-tracker { display: none; gap: 12px; margin-bottom: 20px; width: 100%; max-width: 600px; justify-content: space-between; }
+        .phase-step { flex: 1; text-align: center; padding: 10px 5px; background: #f1f5f9; color: #94a3b8; border-radius: 12px; font-weight: bold; font-size: 15px; transition: all 0.3s; border: 2px solid transparent; }
+        .phase-step.active { background: #fff; color: var(--primary); border-color: var(--primary); box-shadow: 0 4px 12px rgba(44,125,160,0.15); transform: translateY(-2px); font-size: 16px; }
+
+        /* 目标格与光标 */
+        .target { background: #fff9e8; border: 3px dashed #ffb74d; color: transparent; border-radius: 12px; cursor: pointer; }
+        .target.active { border: 3px solid var(--primary); background: #e3f2fd; }
+        .target.selected { border: 4px solid #ff9800 !important; background: #fff3e0 !important; transform: scale(1.15); z-index: 5; box-shadow: 0 0 15px rgba(255, 152, 0, 0.4); animation: pulse-border 1.2s infinite alternate; color: transparent; }
+        .filled { background: var(--success-bg); border: 2px solid var(--success); color: #1b5e20; border-radius: 12px; cursor: default; }
+        .hidden { opacity: 0 !important; visibility: hidden !important; pointer-events: none !important; display: none !important; }
+
+        @keyframes pulse-border { 0% { box-shadow: 0 0 8px rgba(255, 152, 0, 0.3); } 100% { box-shadow: 0 0 20px rgba(255, 152, 0, 0.7); } }
+
+        /* 借位与进位特效 */
+        .slash-target-container, .ten-target-container { position: relative; z-index: 10; overflow: visible; width: 100%; height: 100%; }
+        .slash-target { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 183, 77, 0.2); border: 2px dashed #ffb74d; border-radius: 8px; }
+        .slash-target.active { border: 2px solid var(--error) !important; background: rgba(227, 242, 253, 0.5) !important; }
+        .slash-target.selected { border: 3px solid #ff9800 !important; background: rgba(255, 243, 224, 0.5) !important; transform: scale(1.1); animation: pulse-border 1.2s infinite alternate; }
+        
+        .slash-filled { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; background: none; pointer-events: none; }
+        
+        /* 除法专用斜杠填充 */
+        .slash-filled-div::before { content: ''; position: absolute; top: 50%; left: 10%; width: 80%; height: 2px; background-color: var(--error); transform: rotate(45deg); }
+        .slash-filled-div::after { content: attr(data-dec); position: absolute; top: -16px; left: -12px; color: var(--error); font-size: 18px; font-weight: 900; background: rgba(255,255,255,0.85); padding: 0 4px; border-radius: 6px; }
+
+        .ten-target { position: absolute; top: -15px; right: -15px; width: 32px; height: 32px; background: rgba(255, 183, 77, 0.2); border: 2px dashed #ffb74d; border-radius: 50%; }
+        .ten-target.active { border: 2px solid var(--error) !important; background: rgba(227, 242, 253, 0.5) !important; }
+        .ten-target.selected { border: 3px solid #ff9800 !important; background: rgba(255, 243, 224, 0.5) !important; transform: scale(1.2); animation: pulse-border 1.2s infinite alternate; }
+        .ten-filled { position: absolute; top: -15px; right: -15px; width: 32px; height: 32px; color: var(--error); font-size: 18px; font-weight: 900; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.95); border-radius: 50%; border: 2px solid #ffcdd2; pointer-events: none; }
+
+        .carry-target { width: 30px !important; height: 30px !important; border-radius: 50%; font-size: 18px !important; margin: auto; align-self: end; }
+
+        /* ================= 侧边栏与键盘 ================= */
+        .btn-auto { width: 100%; padding: 14px; font-size: 18px; font-weight: bold; background: var(--warning); color: white; border: none; border-radius: 16px; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 10px rgba(245,158,11,0.3); margin-bottom: 16px; }
+        .btn-auto:hover { background: #d97706; transform: translateY(-2px); }
+        .btn-auto.active-auto { background: #10b981; box-shadow: 0 4px 10px rgba(16,185,129,0.3); }
+
+        .info-bar { text-align: center; font-size: 1.1rem; color: #1e4663; font-weight: bold; background: #e0f2fe; padding: 16px 20px; border-radius: 16px; border: 2px dashed #7dd3fc; line-height: 1.5; margin-bottom: 16px; min-height: 80px; display: flex; flex-direction: column; justify-content: center; align-items: center;}
+        .info-sub { font-size: 0.9rem; color: #64748b; font-weight: normal; margin-top: 6px; }
+        #hintBtn { padding: 6px 16px; font-size: 15px; font-weight: bold; background: var(--warning); color: white; border: none; border-radius: 12px; cursor: pointer; margin-top: 8px; transition: 0.2s; box-shadow: 0 3px 6px rgba(0,0,0,0.1); }
+        #hintBtn:hover { background: #d97706; transform: translateY(-1px); }
+
+        .pool { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 20px; background: #f8fafc; border-radius: 20px; border: 1px solid #e2e8f0; }
+        .num { width: 64px; height: 64px; background: linear-gradient(145deg, #ffffff, #e6e6e6); color: #1e293b; border: 2px solid #cbd5e1; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.05); font-family: monospace; transition: 0.1s; }
+        .num:active { transform: scale(0.9); background: #e2e8f0; }
+        .num-special { color: var(--error); background: #ffebee; border-color: #ffcdd2; }
+
+        .action-btns { display: flex; width: 100%; margin-top: 10px; }
+        .btn-redo-action { width: 100%; padding: 14px; font-size: 20px; font-weight: bold; border-radius: 16px; cursor: pointer; border: none; color: white; background: #475569; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.2s; }
+        .btn-redo-action:hover { background: #334155; transform: translateY(-2px); }
+
+        @media (max-width: 600px) {
+            :root { --cell-size: 42px; --cell-font: 22px; }
+            .phase-step { font-size: 13px; padding: 8px 2px; }
+            .phase-step.active { font-size: 14px; }
+            .num { width: 50px; height: 50px; font-size: 24px; }
+            .btn-nav { font-size: 14px; padding: 8px 12px; }
+            .formula-top { font-size: 24px; padding: 10px 20px; }
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="page active" id="menuPage">
+    <div class="menu-title">🌟 数学竖式填填乐</div>
+    <div class="menu-cards">
+        <div class="mode-card" onclick="openSetup('add')">
+            <div class="mode-icon">➕</div>
+            <div class="mode-name">加法</div>
+        </div>
+        <div class="mode-card" onclick="openSetup('sub')">
+            <div class="mode-icon">➖</div>
+            <div class="mode-name">减法</div>
+        </div>
+        <div class="mode-card" onclick="openSetup('mul')">
+            <div class="mode-icon">✖️</div>
+            <div class="mode-name">乘法</div>
+        </div>
+        <div class="mode-card" onclick="openSetup('div')">
+            <div class="mode-icon">➗</div>
+            <div class="mode-name">除法</div>
+        </div>
+    </div>
+</div>
+
+<div class="page" id="setupPage">
+    <div class="setup-container">
+        <div class="setup-title" id="setupTitle">新建练习</div>
+        <div class="setup-inputs">
+            <input type="text" id="num1" value="" placeholder="点击" readonly class="active-input">
+            <div class="operator-symbol" id="setupOperator">+</div>
+            <input type="text" id="num2" value="" placeholder="点击" readonly>
+        </div>
+        <div class="setup-keyboard">
+            <div class="setup-key" onclick="handleSetupKey('1')">1</div>
+            <div class="setup-key" onclick="handleSetupKey('2')">2</div>
+            <div class="setup-key" onclick="handleSetupKey('3')">3</div>
+            <div class="setup-key" onclick="handleSetupKey('4')">4</div>
+            <div class="setup-key" onclick="handleSetupKey('5')">5</div>
+            <div class="setup-key" onclick="handleSetupKey('6')">6</div>
+            <div class="setup-key" onclick="handleSetupKey('7')">7</div>
+            <div class="setup-key" onclick="handleSetupKey('8')">8</div>
+            <div class="setup-key" onclick="handleSetupKey('9')">9</div>
+            <div class="setup-key" style="visibility: hidden;"></div>
+            <div class="setup-key" onclick="handleSetupKey('0')">0</div>
+            <div class="setup-key del-key" onclick="handleSetupKey('del')">⌫</div>
+        </div>
+        <button class="btn-main" onclick="initGame(false)">🚀 开始答题</button>
+        <button class="btn-main btn-secondary" onclick="backToMenu()">🏠 返回大厅</button>
+    </div>
+</div>
+
+<div class="page" id="workspacePage">
+    <div class="top-bar">
+        <button class="btn-nav" onclick="backToSetup()">⬅ 下一题</button>
+        <div class="formula-top" id="formulaTop">
+            <span id="ft-num1"></span> <span id="ft-op" style="margin: 0 10px;"></span> <span id="ft-num2"></span> = <span id="ft-result" style="color: var(--primary);"></span><span id="ft-remainder" style="color: var(--error); margin-left: 10px;"></span>
+        </div>
+        <button class="btn-nav" onclick="backToMenu()">🏠 主菜单</button>
+    </div>
+
+    <div class="workspace-layout">
+        <div class="left-panel">
+            <div class="phase-tracker" id="phaseTracker">
+                <div class="phase-step" id="phase-D">1️⃣ 一除 (÷)</div>
+                <div class="phase-step" id="phase-M">2️⃣ 二乘 (×)</div>
+                <div class="phase-step" id="phase-S">3️⃣ 三减 (-)</div>
+                <div class="phase-step" id="phase-B">4️⃣ 四带 (↓)</div>
+            </div>
+            <div class="board">
+                <div id="grid" class="math-grid"></div>
+            </div>
+        </div>
+        
+        <div class="right-panel">
+            <button class="btn-auto" id="btnAutoCalc" onclick="toggleAutoCalc()">▶ 自动演算</button>
+            <div class="info-bar" id="stepMessage"></div>
+            <div class="pool" id="numberPool"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    /* ================= 音效管理器 (Web Audio API) ================= */
+    const SoundManager = {
+        ctx: null,
+        init: function() {
+            if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            if (this.ctx.state === 'suspended') this.ctx.resume();
+        },
+        play: function(freq, type, duration, vol=0.1) {
+            this.init();
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+            gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            osc.stop(this.ctx.currentTime + duration);
+        },
+        correct: function() { // 答对：清脆的叮当声
+            this.play(600, 'sine', 0.1, 0.1);
+            setTimeout(() => this.play(800, 'sine', 0.2, 0.15), 100);
+        },
+        wrong: function() { // 答错：低沉的警告声
+            this.play(250, 'sawtooth', 0.3, 0.05);
+            setTimeout(() => this.play(200, 'sawtooth', 0.4, 0.05), 150);
+        },
+        clickNum: function() { // 数字键点击声
+            this.play(400, 'sine', 0.05, 0.05);
+        },
+        clickNav: function() { // 导航/功能键点击声
+            this.play(500, 'triangle', 0.1, 0.05);
+        }
+    };
+
+    /* ================= 状态管理 ================= */
+    let currentMode = 'add'; // 'add', 'sub', 'mul', 'div'
+    let activeSetupInput = document.getElementById('num1');
+    let tasksSequence = [];
+    let currentTaskIndex = 0;
+    let pendingCellsInTask = 0;
+    let mistakeCount = 0;
+    let isAutoCalculating = false;
+    let autoCalcTimer = null;
+    let finalRemainderGlobal = 0;
+
+    /* ================= 页面导航与设置 ================= */
+    function showPage(pageId) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById(pageId).classList.add('active');
+    }
+
+    function backToMenu() {
+        SoundManager.clickNav(); // 播放音效
+        isAutoCalculating = false; clearTimeout(autoCalcTimer);
+        showPage('menuPage');
+    }
+
+    function openSetup(mode) {
+        SoundManager.clickNav(); // 播放音效
+        currentMode = mode;
+        const opMap = { 'add': '+', 'sub': '−', 'mul': '×', 'div': '÷' };
+        const titleMap = { 'add': '➕ 加法', 'sub': '➖ 减法', 'mul': '✖️ 乘法', 'div': '➗ 除法' };
+        
+        document.getElementById('setupOperator').innerText = opMap[mode];
+        document.getElementById('setupTitle').innerHTML = titleMap[mode];
+        
+        document.getElementById('num1').value = '';
+        document.getElementById('num2').value = '';
+        activeSetupInput = document.getElementById('num1');
+        document.getElementById('num1').classList.add('active-input');
+        document.getElementById('num2').classList.remove('active-input');
+        
+        showPage('setupPage');
+    }
+
+    function backToSetup() {
+        SoundManager.clickNav(); // 播放音效
+        isAutoCalculating = false; clearTimeout(autoCalcTimer);
+        openSetup(currentMode);
+    }
+
+    document.getElementById('num1').addEventListener('click', function() { activeSetupInput.classList.remove('active-input'); activeSetupInput = this; this.classList.add('active-input'); });
+    document.getElementById('num2').addEventListener('click', function() { activeSetupInput.classList.remove('active-input'); activeSetupInput = this; this.classList.add('active-input'); });
+
+    function handleSetupKey(val) {
+        SoundManager.clickNum(); // 播放音效
+        if (val === 'del') {
+            activeSetupInput.value = activeSetupInput.value.slice(0, -1);
+        } else {
+            let maxLen = currentMode === 'div' ? 6 : 5;
+            if(activeSetupInput.value.length < maxLen) activeSetupInput.value += val;
+        }
+    }
+
+    /* ================= 算式网格生成引擎 ================= */
+    function initGame(autoStart = false) {
+        SoundManager.clickNav(); // 播放音效
+        let n1Str = document.getElementById('num1').value;
+        let n2Str = document.getElementById('num2').value;
+        if (!n1Str || !n2Str) { alert("请输入两个数字！"); return; }
+        
+        let n1 = parseInt(n1Str);
+        let n2 = parseInt(n2Str);
+        if (isNaN(n1) || isNaN(n2)) return;
+
+        if (currentMode === 'sub' && n1 < n2) { alert("减法练习中，被减数不能小于减数哦！"); return; }
+        if (currentMode === 'div' && n2 <= 0) { alert("除数需大于0！"); return; }
+
+        document.getElementById('ft-num1').innerText = n1;
+        document.getElementById('ft-op').innerText = { 'add': '+', 'sub': '−', 'mul': '×', 'div': '÷' }[currentMode];
+        document.getElementById('ft-num2').innerText = n2;
+        document.getElementById('ft-result').innerText = "";
+        document.getElementById('ft-remainder').innerText = "";
+
+        isAutoCalculating = autoStart;
+        const btnAuto = document.getElementById('btnAutoCalc');
+        btnAuto.style.display = 'block';
+        if (autoStart) { btnAuto.innerHTML = "⏸ 停止演算"; btnAuto.classList.add('active-auto'); } 
+        else { btnAuto.innerHTML = "▶ 自动演算"; btnAuto.classList.remove('active-auto'); }
+
+        const grid = document.getElementById('grid');
+        const phaseTracker = document.getElementById('phaseTracker');
+        
+        if (currentMode === 'div') {
+            grid.classList.add('div-grid');
+            phaseTracker.style.display = 'flex';
+        } else {
+            grid.classList.remove('div-grid');
+            phaseTracker.style.display = 'none';
+        }
+
+        generateGridAndTasks(n1Str, n2Str);
+        renderKeyboard();
+        showPage('workspacePage');
+        
+        currentTaskIndex = 0; mistakeCount = 0;
+        activateCurrentTask();
+    }
+
+    function generateGridAndTasks(s1, s2) {
+        const grid = document.getElementById('grid');
+        grid.innerHTML = '';
+        tasksSequence = [];
+        
+        if (currentMode === 'add') buildAddGrid(s1, s2, grid);
+        else if (currentMode === 'sub') buildSubGrid(s1, s2, grid);
+        else if (currentMode === 'mul') buildMulGrid(s1, s2, grid);
+        else if (currentMode === 'div') buildDivGrid(s1, s2, grid);
+    }
+
+    // ========== 加法引擎 ==========
+    function buildAddGrid(s1, s2, grid) {
+        let len = Math.max(s1.length, s2.length);
+        let totalCols = len + 2; 
+        grid.style.gridTemplateColumns = `repeat(${totalCols}, var(--cell-size))`;
+
+        let rCarry = 1, rNum1 = 2, rNum2 = 3, rLine = 4, rRes = 5;
+
+        for(let i=0; i<s1.length; i++) addCell(grid, rNum1, totalCols - s1.length + i + 1, s1[i], 'static');
+        addCell(grid, rNum2, 1, '+', 'symbol');
+        for(let i=0; i<s2.length; i++) addCell(grid, rNum2, totalCols - s2.length + i + 1, s2[i], 'static');
+        grid.innerHTML += `<div class="sub-line" style="grid-row:${rLine}; grid-column:1 / ${totalCols+1};"></div>`;
+
+        let n1 = s1.split('').reverse().map(Number);
+        let n2 = s2.split('').reverse().map(Number);
+        let carry = 0;
+        let maxIdx = Math.max(n1.length, n2.length);
+
+        for (let i = 0; i < maxIdx; i++) {
+            let v1 = n1[i] || 0;
+            let v2 = n2[i] || 0;
+            let sum = v1 + v2 + carry;
+            let digit = sum % 10;
+            let targetCol = totalCols - i;
+            
+            let cellsToFill = [];
+            let msgQ = `计算：${v1} + ${v2}` + (carry > 0 ? ` + ${carry}` : '') + ` = `;
+            let msgHint = `<span style="color:var(--error); font-size: 24px; margin-left: 5px;">${sum}</span>`;
+
+            if (i === maxIdx - 1) {
+                // 最后一列
+                if (sum >= 10) {
+                    let tens = Math.floor(sum / 10);
+                    let units = sum % 10;
+                    
+                    // 先生成进位/十位，加入任务队列
+                    let cIdTens = `res-${i}-tens`;
+                    grid.innerHTML += `<div class="cell target hidden" id="${cIdTens}" style="grid-row:${rRes}; grid-column:${targetCol - 1};"></div>`;
+                    cellsToFill.push({ id: cIdTens, val: String(tens) }); 
+                    
+                    // 再生成个位，并标记特殊属性保证顶部公式拼接正确
+                    let cIdUnits = `res-${i}-units`;
+                    grid.innerHTML += `<div class="cell target hidden" id="${cIdUnits}" data-res-str="${sum}" style="grid-row:${rRes}; grid-column:${targetCol};"></div>`;
+                    cellsToFill.push({ id: cIdUnits, val: String(units), isResult: true });
+                    
+                    msgHint += `<span style="font-size:16px; margin-left:5px;">(先填十位，再填个位)</span>`;
+                } else {
+                    let cId = `res-${i}`;
+                    grid.innerHTML += `<div class="cell target hidden" id="${cId}" style="grid-row:${rRes}; grid-column:${targetCol};"></div>`;
+                    cellsToFill.push({ id: cId, val: String(digit), isResult: true });
+                }
+            } else {
+                // 普通列
+                carry = Math.floor(sum / 10);
+                if (carry > 0) {
+                    // 先生成顶部进位圆圈，并加入队列
+                    let carryCol = targetCol - 1;
+                    let carryId = `carry-${i}`;
+                    grid.innerHTML += `<div class="cell target hidden carry-target" id="${carryId}" style="grid-row:${rCarry}; grid-column:${carryCol};"></div>`;
+                    cellsToFill.push({ id: carryId, val: '1' });
+                    msgHint += `<span style="font-size:16px; margin-left:5px;">(先填进位，再填结果)</span>`;
+                } else {
+                    carry = 0;
+                }
+
+                // 最后再生成下方结果格子
+                let cId = `res-${i}`;
+                grid.innerHTML += `<div class="cell target hidden" id="${cId}" style="grid-row:${rRes}; grid-column:${targetCol};"></div>`;
+                cellsToFill.push({ id: cId, val: String(digit), isResult: true });
+            }
+            
+            tasksSequence.push({ msg: msgQ, hintAns: msgHint, cells: cellsToFill });
+        }
+        
+        grid.innerHTML += `<div class="bottom-line" id="final-bottom-line" style="grid-row:${rRes + 1}; grid-column:1 / ${totalCols+1};"></div>`;
+    }
+
+    // ========== 减法引擎 ==========
+    function buildSubGrid(s1, s2, grid) {
+        let totalCols = Math.max(s1.length, s2.length) + 1; 
+        grid.style.gridTemplateColumns = `repeat(${totalCols}, var(--cell-size))`;
+
+        let rBorrow = 1, rNum1 = 2, rNum2 = 3, rLine = 4, rRes = 5;
+
+        for(let i=0; i<s1.length; i++) addCell(grid, rNum1, totalCols - s1.length + i + 1, s1[i], 'static');
+        addCell(grid, rNum2, 1, '−', 'symbol');
+        for(let i=0; i<s2.length; i++) addCell(grid, rNum2, totalCols - s2.length + i + 1, s2[i], 'static');
+        grid.innerHTML += `<div class="sub-line" style="grid-row:${rLine}; grid-column:1 / ${totalCols+1};"></div>`;
+
+        let n1 = s1.split('').map(Number);
+        let n2 = s2.padStart(s1.length, '0').split('').map(Number);
+        let currentVals = [...n1];
+
+        // 计算真实差值，用来精准判断前导零
+        let trueDiff = parseInt(s1) - parseInt(s2);
+        let trueDiffStrLen = trueDiff === 0 ? 1 : trueDiff.toString().length;
+
+        for (let i = n1.length - 1; i >= 0; i--) {
+            let col = totalCols - (n1.length - 1 - i);
+
+            // 1. 检查借位
+            if (currentVals[i] < n2[i]) {
+                let bIdx = i - 1;
+                while (bIdx >= 0 && currentVals[bIdx] === 0) bIdx--;
+                if (bIdx >= 0) {
+                    currentVals[bIdx] -= 1;
+                    let bCells = [];
+                    let colB = totalCols - (n1.length - 1 - bIdx);
+                    grid.innerHTML += `<div class="cell hidden slash-target-container" id="b-${i}-${bIdx}-container" style="grid-row:${rNum1}; grid-column:${colB};"><div class="target slash-target" id="b-${i}-${bIdx}" data-dec="${currentVals[bIdx]}"></div></div>`;
+                    bCells.push({ id: `b-${i}-${bIdx}`, val: '\\', decremented: currentVals[bIdx] });
+                    
+                    for (let z = bIdx + 1; z < i; z++) {
+                        currentVals[z] = 9;
+                        let colZ = totalCols - (n1.length - 1 - z);
+                        grid.innerHTML += `<div class="cell hidden slash-target-container" id="b-${i}-${z}-container" style="grid-row:${rNum1}; grid-column:${colZ};"><div class="target slash-target" id="b-${i}-${z}" data-dec="9_from_10"></div></div>`;
+                        bCells.push({ id: `b-${i}-${z}`, val: '\\', decremented: '9_from_10' });
+                    }
+                    
+                    currentVals[i] += 10;
+                    grid.innerHTML += `<div class="cell hidden ten-target-container" id="t-${i}-container" style="grid-row:${rNum1}; grid-column:${col};"><div class="target ten-target" id="t-${i}"></div></div>`;
+                    bCells.push({ id: `t-${i}`, val: '10' });
+
+                    let msgQ = `不够减！请向高位借位`;
+                    let msgHint = `<span style="color:var(--error); font-size: 18px; margin-left: 8px;">(点击 \\ 和 小10)</span>`;
+                    tasksSequence.push({ msg: msgQ, hintAns: msgHint, cells: bCells });
+                }
+            }
+
+            // 2. 执行减法
+            let diff = currentVals[i] - n2[i];
+            
+            // 判断是否为前导零：当前处理的位数（从右往左数，0开始）如果大于等于实际结果的长度，则视为前导零，跳过不渲染
+            let placeFromRight = n1.length - 1 - i; 
+            if (placeFromRight >= trueDiffStrLen) continue; 
+
+            let cId = `res-${i}`;
+            grid.innerHTML += `<div class="cell target hidden" id="${cId}" style="grid-row:${rRes}; grid-column:${col};"></div>`;
+            
+            let msgQ = `计算：${currentVals[i]} − ${n2[i]} = `;
+            let msgHint = `<span style="color:var(--error); font-size: 24px; margin-left: 5px;">${diff}</span>`;
+            
+            tasksSequence.push({ msg: msgQ, hintAns: msgHint, cells: [{ id: cId, val: String(diff), isResult: true }] });
+        }
+        
+        grid.innerHTML += `<div class="bottom-line" id="final-bottom-line" style="grid-row:${rRes + 1}; grid-column:1 / ${totalCols+1};"></div>`;
+    }
+
+    // ========== 乘法引擎 ==========
+    function buildMulGrid(s1, s2, grid) {
+        let totalCols = s1.length + s2.length + 1; 
+        grid.style.gridTemplateColumns = `repeat(${totalCols}, var(--cell-size))`;
+
+        let rCarry = 1, rNum1 = 2, rNum2 = 3, rLine1 = 4;
+        
+        for(let i=0; i<s1.length; i++) addCell(grid, rNum1, totalCols - s1.length + i + 1, s1[i], 'static');
+        addCell(grid, rNum2, totalCols - s2.length, '×', 'symbol');
+        for(let i=0; i<s2.length; i++) addCell(grid, rNum2, totalCols - s2.length + i + 1, s2[i], 'static');
+        grid.innerHTML += `<div class="sub-line" style="grid-row:${rLine1}; grid-column:1 / ${totalCols+1};"></div>`;
+
+        let n1 = s1.split('').reverse().map(Number);
+        let n2 = s2.split('').reverse().map(Number);
+        let interSums = [];
+        let currentRow = 5;
+
+        for (let j = 0; j < n2.length; j++) {
+            let carry = 0;
+            let currentInterStr = "";
+            let bCells = [];
+            
+            for (let i = 0; i < n1.length; i++) {
+                let oldCarry = carry; 
+                let prod = n2[j] * n1[i] + oldCarry;
+                let digit = prod % 10;
+                carry = Math.floor(prod / 10); 
+                
+                currentInterStr = digit + currentInterStr;
+
+                let targetCol = totalCols - (j + i);
+                let cId = `p-${j}-${i}`;
+                
+                let cellsToFill = [];
+                let msgQ = `计算：${n1[i]} × ${n2[j]}` + (oldCarry > 0 ? ` + ${oldCarry}` : '') + ` = `;
+                let msgHint = `<span style="color:var(--error); font-size: 24px; margin-left: 5px;">${prod}</span>` + (carry > 0 ? `<span style="font-size:16px;">（进位）</span>` : '');
+
+                if (carry > 0 && i < n1.length - 1) {
+                    let carryCol = targetCol - 1;
+                    let carryId = `pc-${j}-${i}`;
+                    grid.innerHTML += `<div class="cell target hidden carry-target" id="${carryId}" style="grid-row:${rCarry}; grid-column:${carryCol};"></div>`;
+                    cellsToFill.push({ id: carryId, val: String(carry) });
+                } else if (carry > 0 && i === n1.length - 1) {
+                    let lastCol = targetCol - 1;
+                    let lastId = `p-${j}-last`;
+                    grid.innerHTML += `<div class="cell target hidden" id="${lastId}" style="grid-row:${currentRow}; grid-column:${lastCol};"></div>`;
+                    cellsToFill.push({ id: lastId, val: String(carry) });
+                    currentInterStr = carry + currentInterStr;
+                }
+
+                grid.innerHTML += `<div class="cell target hidden" id="${cId}" style="grid-row:${currentRow}; grid-column:${targetCol};"></div>`;
+                cellsToFill.push({ id: cId, val: String(digit) });
+                
+                tasksSequence.push({ msg: msgQ, hintAns: msgHint, cells: cellsToFill });
+            }
+            interSums.push(currentInterStr + "0".repeat(j));
+            currentRow++;
+        }
+
+        if (n2.length > 1) {
+            grid.innerHTML += `<div class="sub-line" style="grid-row:${currentRow}; grid-column:1 / ${totalCols+1};"></div>`;
+            currentRow++;
+            
+            let finalSum = String(parseInt(s1) * parseInt(s2));
+            for (let i = 0; i < finalSum.length; i++) {
+                let col = totalCols - finalSum.length + i + 1;
+                let rId = `fres-${i}`;
+                grid.innerHTML += `<div class="cell target hidden" id="${rId}" style="grid-row:${currentRow}; grid-column:${col};"></div>`;
+                
+                let msgQ = `计算：求和列 = `;
+                let msgHint = `<span style="color:var(--error); font-size: 24px; margin-left: 5px;">${finalSum[i]}</span>`;
+                
+                tasksSequence.push({ msg: msgQ, hintAns: msgHint, cells: [{ id: rId, val: finalSum[i], isResult: true }] });
+            }
+            let sumTasks = tasksSequence.splice(tasksSequence.length - finalSum.length, finalSum.length);
+            tasksSequence.push(...sumTasks.reverse());
+        }
+        
+        grid.innerHTML += `<div class="bottom-line" id="final-bottom-line" style="grid-row:${currentRow + 1}; grid-column:1 / ${totalCols+1};"></div>`;
+    }
+
+    // ========== 除法引擎 ==========
+    function computeLongDivision(dividend, divisor) {
+        const dividendStr = dividend.toString();
+        const stepsDetail = [];
+        let currentPart = 0;
+        let leadingZeroSkipped = false;
+
+        for (let i = 0; i < dividendStr.length; i++) {
+            const digit = parseInt(dividendStr[i]);
+            currentPart = currentPart * 10 + digit;
+            const q = Math.floor(currentPart / divisor);
+            const product = q * divisor;
+            const remainder = currentPart - product;
+
+            if (!leadingZeroSkipped && q === 0 && i < dividendStr.length - 1) {
+                currentPart = remainder;
+                continue;
+            }
+
+            leadingZeroSkipped = true;
+            const nextDigitRaw = (i + 1 < dividendStr.length) ? parseInt(dividendStr[i + 1]) : null;
+            
+            stepsDetail.push({
+                quotientDigit: q, product: product, remainderAfter: remainder,
+                positionIndex: i, nextDigits: nextDigitRaw !== null ? [nextDigitRaw] : [],
+                currentPartBefore: currentPart
+            });
+            currentPart = remainder;
+        }
+
+        if (stepsDetail.length === 0) {
+            stepsDetail.push({
+                quotientDigit: 0, product: 0, remainderAfter: dividend,
+                positionIndex: dividendStr.length - 1, nextDigits: [], currentPartBefore: dividend
+            });
+        }
+        return { steps: stepsDetail, dividendStr, divisorStr: divisor.toString() };
+    }
+
+    function getBorrowTargetsDiv(mStr, sStr) {
+        let mArr = mStr.split('').map(Number);
+        let sArr = sStr.split('').map(Number);
+        while(sArr.length < mArr.length) sArr.unshift(0);
+        
+        let targets = [];
+        let currentVals = [...mArr];
+
+        for (let i = mArr.length - 1; i >= 0; i--) {
+            if (currentVals[i] < sArr[i]) {
+                let bIdx = i - 1;
+                while (bIdx >= 0 && currentVals[bIdx] === 0) bIdx--;
+                if (bIdx >= 0) {
+                    currentVals[bIdx] -= 1;
+                    targets.push({ type: 'slash', index: bIdx, val: currentVals[bIdx] });
+                    for (let z = bIdx + 1; z < i; z++) {
+                        currentVals[z] = 9; 
+                        targets.push({ type: 'slash', index: z, val: 9 });
+                    }
+                    currentVals[i] += 10;
+                    targets.push({ type: 'ten', index: i });
+                }
+            }
+        }
+        return targets;
+    }
+
+    function getDigitsWithCols(number, rightAlignColIndex) {
+        let str = number.toString();
+        return str.split('').map((char, index) => ({
+            val: char, col: rightAlignColIndex - (str.length - 1 - index)
+        }));
+    }
+
+    function buildDivGrid(dividendStr, divisorStr, grid) {
+        let dividend = parseInt(dividendStr);
+        let divisor = parseInt(divisorStr);
+        const stepsData = computeLongDivision(dividend, divisor).steps;
+
+        finalRemainderGlobal = stepsData[stepsData.length - 1].remainderAfter;
+        
+        let colsTemplate = [];
+        for (let i = 0; i < divisorStr.length; i++) colsTemplate.push('var(--cell-size)');
+        colsTemplate.push('14px'); 
+        let rightColsCount = dividendStr.length + (finalRemainderGlobal > 0 ? 1 : 0);
+        for (let i = 0; i < rightColsCount; i++) colsTemplate.push('var(--cell-size)');
+        
+        grid.style.gridTemplateColumns = colsTemplate.join(' ');
+
+        const divStartCol = divisorStr.length + 2; 
+        const globalRightCol = divStartCol + dividendStr.length - 1;
+
+        for (let i = 0; i < divisorStr.length; i++) {
+            grid.innerHTML += `<div class="cell static" style="grid-row:2; grid-column:${i + 1};">${divisorStr[i]}</div>`;
+        }
+        grid.innerHTML += `<div class="cell static division-symbol" style="grid-row:2; grid-column:${divisorStr.length + 1};"></div>`;
+        for (let i = 0; i < dividendStr.length; i++) {
+            grid.innerHTML += `<div class="cell static dividend-top" style="grid-row:2; grid-column:${divStartCol + i};">${dividendStr[i]}</div>`;
+        }
+
+        let currentRow = 3;
+
+        stepsData.forEach((step, stepIdx) => {
+            const rightCol = divStartCol + step.positionIndex; 
+            const minuendRow = stepIdx === 0 ? 2 : currentRow - 1; 
+
+            // 1. 除
+            let qId = `cell-q-${stepIdx}`;
+            grid.innerHTML += `<div class="cell target hidden" id="${qId}" style="grid-row:1; grid-column:${rightCol};"></div>`;
+            tasksSequence.push({ 
+                phase: 'D', 
+                msg: `💡 一除：${step.currentPartBefore} ÷ ${divisorStr} = `, 
+                hintAns: `${step.quotientDigit}`, 
+                cells: [{ id: qId, val: step.quotientDigit.toString(), isDivQuotient: true }] 
+            });
+
+            // 2. 乘积
+            const pDigits = getDigitsWithCols(step.product, rightCol);
+            let pTaskCells = [];
+            pDigits.forEach((d, i) => {
+                let pId = `cell-p-${stepIdx}-${i}`;
+                grid.innerHTML += `<div class="cell target hidden" id="${pId}" style="grid-row:${currentRow}; grid-column:${d.col};"></div>`;
+                pTaskCells.push({ id: pId, val: d.val });
+            });
+            
+            const currentPartStr = step.currentPartBefore.toString();
+            const currentPartStartCol = rightCol - currentPartStr.length + 1;
+            const lineStartCol = Math.min(currentPartStartCol, pDigits[0].col);
+            
+            let lineId = `line-${stepIdx}`;
+            grid.innerHTML += `<div class="div-sub-line hidden" id="${lineId}" style="grid-row:${currentRow}; grid-column:${lineStartCol} / ${globalRightCol + 1};"></div>`;
+            
+            tasksSequence.push({ 
+                phase: 'M', 
+                msg: `💡 二乘： ${divisorStr} × ${step.quotientDigit} = `, 
+                hintAns: `${step.product}`,
+                cells: pTaskCells, showLineId: lineId 
+            });
+
+            // 3. 借位判断
+            let borrowTargets = getBorrowTargetsDiv(currentPartStr, step.product.toString());
+            if (borrowTargets.length > 0) {
+                let bCells = [];
+                borrowTargets.forEach((bt, idx) => {
+                    let col = rightCol - currentPartStr.length + 1 + bt.index;
+                    let id = `borrow-${stepIdx}-${idx}`;
+                    if (bt.type === 'slash') {
+                        grid.innerHTML += `<div class="cell hidden slash-target-container" id="${id}-container" style="grid-row:${minuendRow}; grid-column:${col};"><div class="target slash-target" id="${id}" data-dec="${bt.val}"></div></div>`;
+                        bCells.push({ id: id, val: '\\', decrementedDiv: bt.val });
+                    } else if (bt.type === 'ten') {
+                        grid.innerHTML += `<div class="cell hidden ten-target-container" id="${id}-container" style="grid-row:${minuendRow}; grid-column:${col};"><div class="target ten-target" id="${id}"></div></div>`;
+                        bCells.push({ id: id, val: '10' });
+                    }
+                });
+                tasksSequence.push({ 
+                    phase: 'S', 
+                    msg: `💡 退位减法：发现不够减，请点击 \\ 和 小10 借位！`, 
+                    hintAns: `按借位规则`,
+                    cells: bCells 
+                });
+            }
+
+            currentRow += 2; 
+
+            // 4. 余数计算
+            let isFinalTask = (stepIdx === stepsData.length - 1);
+            let skipZeroRemainder = (step.remainderAfter === 0 && !isFinalTask); 
+
+            let rTaskCells = [];
+            let rDigits = [];
+            let showZeroLineId = null;
+            let showRemLabelId = null;
+
+            if (!skipZeroRemainder) {
+                rDigits = getDigitsWithCols(step.remainderAfter, rightCol);
+                rDigits.forEach((d, i) => {
+                    let rId = `cell-r-${stepIdx}-${i}`;
+                    grid.innerHTML += `<div class="cell target hidden" id="${rId}" style="grid-row:${currentRow}; grid-column:${d.col};"></div>`;
+                    rTaskCells.push({ id: rId, val: d.val });
+                });
+            }
+
+            if (isFinalTask) {
+                if (finalRemainderGlobal === 0) {
+                    showZeroLineId = `zero-final-line`;
+                    let finalLineStartCol = rDigits.length > 0 ? rDigits[0].col : lineStartCol;
+                    grid.innerHTML += `<div class="div-sub-line hidden" id="${showZeroLineId}" style="grid-row:${currentRow}; grid-column:${finalLineStartCol} / ${globalRightCol + 1}; margin-bottom: -12px;"></div>`;
+                } else {
+                    showRemLabelId = `rem-label-final`;
+                    grid.innerHTML += `<div class="cell static hidden" id="${showRemLabelId}" style="grid-row:${currentRow}; grid-column:${globalRightCol + 1}; font-size: 20px; color: var(--error); margin-left: 2px; width: max-content; justify-content: flex-start;">(余)</div>`;
+                }
+            }
+
+            if (!skipZeroRemainder) {
+                tasksSequence.push({
+                    phase: 'S', 
+                    msg: `💡 三减：${step.currentPartBefore} - ${step.product} = `,
+                    hintAns: `${step.remainderAfter}`,
+                    cells: rTaskCells, showLineId: showZeroLineId, showRemLabelId: showRemLabelId
+                });
+            }
+
+            // 5. 落位
+            if (!isFinalTask && step.nextDigits.length > 0) {
+                let dTaskCells = [];
+                step.nextDigits.forEach((val, i) => {
+                    let bId = `cell-b-${stepIdx}-${i}`;
+                    let bCol = rightCol + 1 + i;
+                    grid.innerHTML += `<div class="cell target hidden" id="${bId}" style="grid-row:${currentRow}; grid-column:${bCol};"></div>`;
+                    dTaskCells.push({ id: bId, val: val.toString() });
+                });
+                
+                let bMsg = skipZeroRemainder 
+                    ? `💡 三减与四带：刚好减完(差为0)。请点击数字带下来`
+                    : `💡 四带：请点击键盘把下一位数字带下来`;
+                    
+                tasksSequence.push({ 
+                    phase: 'B', msg: bMsg, 
+                    hintAns: `${step.nextDigits.join('')}`,
+                    cells: dTaskCells 
+                });
+            }
+            currentRow++;
+        });
+    }
+
+    function addCell(grid, row, col, val, cls) {
+        grid.innerHTML += `<div class="cell ${cls}" style="grid-row:${row}; grid-column:${col};">${val}</div>`;
+    }
+
+    /* ================= 键盘与交互逻辑 ================= */
+    function renderKeyboard() {
+        const pool = document.getElementById('numberPool');
+        pool.innerHTML = '';
+        let keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
+        
+        if (currentMode === 'sub' || currentMode === 'div') { keys.push('\\', '10'); } 
+
+        keys.forEach(k => {
+            let div = document.createElement('div');
+            div.className = 'num';
+            if (k === '\\' || k === '10') div.classList.add('num-special');
+            div.innerText = k;
+            
+            div.addEventListener('click', () => handleGameClick(k));
+            pool.appendChild(div);
+        });
+    }
+
+    document.addEventListener('click', (e) => {
+        const clickedCell = e.target.closest('.target.active');
+        if (clickedCell && !clickedCell.classList.contains('filled') && !clickedCell.classList.contains('slash-filled') && !clickedCell.classList.contains('slash-filled-div')) {
+            document.querySelectorAll('.target.selected').forEach(el => el.classList.remove('selected'));
+            clickedCell.classList.add('selected');
+        }
+    });
+
+    function toggleAutoCalc() {
+        SoundManager.clickNav(); // 播放音效
+        if (currentTaskIndex >= tasksSequence.length) return; 
+        isAutoCalculating = !isAutoCalculating;
+        const btn = document.getElementById('btnAutoCalc');
+        if (isAutoCalculating) {
+            btn.innerHTML = "⏸ 停止演算"; btn.classList.add('active-auto');
+            simulateCorrectClick(); 
+        } else {
+            btn.innerHTML = "▶ 自动演算"; btn.classList.remove('active-auto');
+            clearTimeout(autoCalcTimer);
+        }
+    }
+
+    function simulateCorrectClick() {
+        if (!isAutoCalculating) return;
+        const targetElem = document.querySelector('.target.selected') || document.querySelector('.target.active:not(.filled):not(.slash-filled):not(.slash-filled-div)');
+        if (!targetElem) return; 
+
+        const expectedAns = targetElem.getAttribute('data-ans');
+        handleGameClick(expectedAns); 
+        
+        if (pendingCellsInTask > 0 && isAutoCalculating) autoCalcTimer = setTimeout(simulateCorrectClick, 500);
+    }
+
+    function renderTaskMessage() {
+        const task = tasksSequence[currentTaskIndex];
+        const msgBox = document.getElementById('stepMessage');
+        
+        if (mistakeCount >= 2) {
+            msgBox.style.backgroundColor = "#fff9e6"; msgBox.style.color = "#b7791f"; msgBox.style.borderColor = "#fbd38d";
+            msgBox.innerHTML = `<div style="font-size: 22px;">${task.msg}</div><button id="hintBtn">💡 提示</button><div class="info-sub">(发光的框为当前位置，可点击切换光标)</div>`;
+            document.getElementById('hintBtn').addEventListener('click', () => {
+                SoundManager.clickNav(); // 播放音效
+                msgBox.innerHTML = `<div style="font-size: 22px; font-weight: 900;">${task.msg} <span style="color:var(--error); font-size: 24px; margin-left: 8px;">${task.hintAns}</span></div><div class="info-sub">(发光的框为当前位置，可点击切换光标)</div>`;
+            });
+        } else {
+            updateUI(`<div style="font-size: 22px;">${task.msg}</div><div class="info-sub">(发光的框为当前位置，可点击切换光标)</div>`);
+        }
+    }
+
+    function activateCurrentTask() {
+        if (currentTaskIndex >= tasksSequence.length) {
+            updateUI("🎉 演算完成！", "SUCCESS");
+            document.querySelectorAll('.target.selected').forEach(el => el.classList.remove('selected'));
+            if (currentMode === 'div') document.querySelectorAll('.phase-step').forEach(el => el.classList.remove('active'));
+            
+            // 显示底部结算线 (加减乘)
+            let finalLine = document.getElementById('final-bottom-line');
+            if (finalLine) finalLine.style.display = 'block';
+
+            isAutoCalculating = false;
+            document.getElementById('btnAutoCalc').style.display = 'none';
+            
+            setTimeout(() => {
+                const msgBox = document.getElementById('stepMessage');
+                msgBox.innerHTML = `
+                    <div class="action-btns">
+                        <button class="btn-redo-action" onclick="initGame(false)">🔄 重新练习</button>
+                    </div>`;
+                msgBox.style.backgroundColor = "transparent"; msgBox.style.border = "none";
+            }, 2500);
+            return;
+        }
+
+        mistakeCount = 0; 
+        const task = tasksSequence[currentTaskIndex];
+        pendingCellsInTask = task.cells.length;
+
+        if (currentMode === 'div') {
+            document.querySelectorAll('.phase-step').forEach(el => el.classList.remove('active'));
+            if(document.getElementById(`phase-${task.phase}`)) {
+                 document.getElementById(`phase-${task.phase}`).classList.add('active');
+            }
+        }
+
+        renderTaskMessage();
+
+        let firstFound = false;
+        task.cells.forEach(c => {
+            const el = document.getElementById(c.id);
+            if (el) {
+                let cont = document.getElementById(c.id + '-container');
+                if (cont) { cont.classList.remove('hidden'); cont.style.display = 'block'; }
+                el.classList.remove('hidden'); el.classList.add('target', 'active');
+                el.setAttribute('data-ans', c.val);
+                if (c.isResult) el.setAttribute('data-res', 'true');
+                if (c.isDivQuotient) el.setAttribute('data-isq', 'true');
+                if (c.decremented !== undefined) el.setAttribute('data-dec', c.decremented);
+                if (c.decrementedDiv !== undefined) el.setAttribute('data-dec-div', c.decrementedDiv);
+                if (!firstFound) { el.classList.add('selected'); firstFound = true; }
+            }
+        });
+
+        if (isAutoCalculating) autoCalcTimer = setTimeout(simulateCorrectClick, 600); 
+    }
+
+    function updateUI(msgHtml, status = "NORMAL") {
+        const msgBox = document.getElementById('stepMessage');
+        msgBox.innerHTML = msgHtml;
+        if (status === "ERROR") { msgBox.style.backgroundColor = "#ffebee"; msgBox.style.color = "#d32f2f"; msgBox.style.borderColor = "#ffcdd2"; } 
+        else if (status === "SUCCESS") { msgBox.style.backgroundColor = "#e8f5e9"; msgBox.style.color = "#2e7d32"; msgBox.style.borderColor = "#a5d6a7"; } 
+        else { msgBox.style.backgroundColor = "#e0f2fe"; msgBox.style.color = "#1e4663"; msgBox.style.borderColor = "#7dd3fc"; }
+    }
+
+    function handleGameClick(val) {
+        clearTimeout(autoCalcTimer);
+        const targetElem = document.querySelector('.target.selected');
+        if (!targetElem) return; 
+
+        const expectedAns = targetElem.getAttribute('data-ans');
+        
+        if (val === expectedAns) {
+            // 播放答对音效
+            if(!isAutoCalculating) SoundManager.correct();
+
+            targetElem.classList.remove('active', 'target', 'selected');
+            
+            if (expectedAns === '\\') {
+                let decSub = targetElem.getAttribute('data-dec');
+                let decDiv = targetElem.getAttribute('data-dec-div');
+
+                if (decSub) {
+                    targetElem.classList.add('slash-filled');
+                    if (decSub === '9_from_10') {
+                        targetElem.innerHTML = `
+                            <div style="position:absolute; top:50%; left:10%; width:80%; height:3px; background:var(--error); transform:rotate(45deg); z-index:2;"></div>
+                            <div style="position:absolute; top:-16px; left:-6px; font-size:15px; color:var(--error); font-weight:900; background:rgba(255,255,255,0.9); padding:0 2px; border-radius:4px; z-index:3;">
+                                10
+                                <div style="position:absolute; top:50%; left:-10%; width:120%; height:2px; background:var(--error); transform:rotate(45deg);"></div>
+                            </div>
+                            <div style="position:absolute; top:-36px; left:6px; font-size:18px; color:var(--error); font-weight:900; background:rgba(255,255,255,0.9); padding:0 2px; border-radius:4px; z-index:4;">9</div>
+                        `;
+                    } else {
+                        targetElem.innerHTML = `
+                            <div style="position:absolute; top:50%; left:10%; width:80%; height:3px; background:var(--error); transform:rotate(45deg); z-index:2;"></div>
+                            <div style="position:absolute; top:-20px; left:-5px; font-size:20px; color:var(--error); font-weight:900; background:rgba(255,255,255,0.9); padding:0 4px; border-radius:6px; z-index:3;">${decSub}</div>
+                        `;
+                    }
+                } else if (decDiv) {
+                    targetElem.classList.add('slash-filled-div');
+                    targetElem.setAttribute('data-dec', decDiv);
+                }
+            }
+            else if (expectedAns === '10') { targetElem.classList.add('ten-filled'); targetElem.innerText = '10'; }
+            else { 
+                targetElem.classList.add('filled'); targetElem.innerText = val; 
+                
+                if (targetElem.getAttribute('data-res') === 'true') {
+                    let currentRes = document.getElementById('ft-result').innerText;
+                    let strToPrepend = targetElem.getAttribute('data-res-str') || val;
+                    document.getElementById('ft-result').innerText = strToPrepend + currentRes;
+                }
+                if (targetElem.getAttribute('data-isq') === 'true') {
+                    document.getElementById('ft-result').innerText += val;
+                }
+            }
+            
+            pendingCellsInTask--;
+            if (pendingCellsInTask === 0) {
+                const completedTask = tasksSequence[currentTaskIndex];
+                
+                // 处理除法特殊完成逻辑
+                if (currentMode === 'div') {
+                    if (completedTask.showLineId) document.getElementById(completedTask.showLineId).classList.remove('hidden');
+                    if (completedTask.showRemLabelId) {
+                        document.getElementById(completedTask.showRemLabelId).classList.remove('hidden');
+                        document.getElementById('ft-remainder').innerText = " 余 " + finalRemainderGlobal;
+                    }
+                }
+
+                currentTaskIndex++;
+                setTimeout(() => activateCurrentTask(), 300);
+            } else {
+                const nextTarget = document.querySelector('.target.active:not(.filled):not(.slash-filled):not(.slash-filled-div)');
+                if (nextTarget) nextTarget.classList.add('selected');
+                if (isAutoCalculating) autoCalcTimer = setTimeout(simulateCorrectClick, 500);
+            }
+        } else {
+            // 播放答错音效
+            if(!isAutoCalculating) SoundManager.wrong();
+
+            mistakeCount++; 
+            targetElem.style.transform = "translateX(-5px)";
+            targetElem.style.borderColor = "var(--error)";
+            updateUI(`❌ 哎呀，错了！想一想哦`, "ERROR");
+            
+            setTimeout(() => {
+                targetElem.style.transform = "scale(1.15)"; 
+                targetElem.style.borderColor = "#ff9800"; 
+                renderTaskMessage(); 
+                if (isAutoCalculating) autoCalcTimer = setTimeout(simulateCorrectClick, 1000);
+            }, 800);
+        }
+    }
+
+    showPage('menuPage');
+</script>
+</body>
+</html>
